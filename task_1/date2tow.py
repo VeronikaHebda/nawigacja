@@ -1,17 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar 10 12:21:33 2022
-
-@author: Student1
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar  3 10:29:45 2022
-
-@author: Maciek
-"""
-
 from datetime import date
 
 def date2tow(data):

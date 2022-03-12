@@ -1,17 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Mar 10 12:21:47 2022
-
-@author: Student1
-"""
-
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Feb 24 10:42:44 2022
-
-@author: Maciek
-"""
-
 import numpy as np
     
 def read_yuma(almanac_file):
