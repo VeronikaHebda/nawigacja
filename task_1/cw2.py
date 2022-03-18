@@ -81,16 +81,16 @@ for ijj in range(0, 31):
         A1 = np.array([[-(xs - xr) / r, -(ys - yr) / r, -(zs - zr) / r, 1]])
         # print(A1)
         A = np.append(A, A1, axis=0)
-print("A:",A)
+print("A: ",A)
 
 Q = np.linalg.inv(A.T @ A)
-print("Q:",Q)
+print("Q: ",Q)
 GDOP = np.sqrt(Q[0, 0] + Q[1, 1] + Q[2, 2] + Q[3, 3])
 PDOP = np.sqrt(Q[0, 0] + Q[1, 1] + Q[2, 2])
 TDOP = np.sqrt(Q[3, 3])
 
 Qneu = Rneu.T @ Q[0:3, 0:3] @ Rneu
-print("Qneu:",Qneu)
+print("Qneu: ",Qneu)
 
 
 
