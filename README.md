@@ -1,1 +1,1 @@
-# nawigacja
+# satellite navigation systems 
