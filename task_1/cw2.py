@@ -8,9 +8,14 @@ import math as m
 from date2tow import date2tow
 from satpos import satpos
 from array import *
+import urllib.request
 
-alm = 'almanac.yuma.week0150.589824.txt'
-navall = read_yuma(alm)
+url_current = 'http://www.navcen.uscg.gov/?pageName=currentAlmanac&format=yuma'
+almanac_name = 'current_almanac.alm'
+urllib.request.urlretrieve(url_current, almanac_name)
+
+navall = read_yuma(almanac_name)
+
 a = 6378137
 e2 = 0.00669438002290
 def geo_to_xyz(fi, lam, h):
@@ -20,21 +25,32 @@ def geo_to_xyz(fi, lam, h):
     z = (N * (1 - e2) + h) * np.sin(fi)
     return x, y, z
 
-def cw2(week,tow,hour,maska):
+
+def fRneu(fi, lam):
+    Rneu = np.array([[-np.sin(fi) * np.cos(lam), -np.sin(lam), np.cos(fi) * np.cos(lam)],
+                     [-np.sin(fi) * np.sin(lam), np.cos(lam), np.cos(fi) * np.sin(lam)],
+                     [np.cos(fi), 0, np.sin(fi)]]
+                    )
+    return Rneu
+
+def cw2(week,tow,hour,maska, fi, lam):
     A = np.zeros((0, 4))
     ilosc_sat = 0
     elewacje = [maska]*31
 
+    fi = np.deg2rad(fi)
+    lam = np.deg2rad(lam)
+    h = 100
+    sat_positions = []
     #petla przechodzaca przez wszystkie satelity
     for ijj in range(0,31):
         nav = navall[ijj, :]
+        prn = nav[0]
+        PRN = []
         # print("Dane dla epoki: ", ijj)
         xs, ys, zs = satpos(nav,week,tow)
         # print("\twspolrzedne satelity: ",xs,ys,zs)
 
-        fi = np.deg2rad(52)
-        lam = np.deg2rad(21)
-        h = 100
 
 
         # xr wspolrzedne odbiornika (miejsce obserwacji)
@@ -51,14 +67,8 @@ def cw2(week,tow,hour,maska):
 
 
         # macierz obrotu
-        def Rneu(fi, lam):
-            Rneu = np.array([[-np.sin(fi) * np.cos(lam), -np.sin(lam), np.cos(fi) * np.cos(lam)],
-                             [-np.sin(fi) * np.sin(lam), np.cos(lam), np.cos(fi) * np.sin(lam)],
-                             [np.cos(fi), 0, np.sin(fi)]]
-                            )
-            return Rneu
 
-        Rneu = Rneu(fi, lam)
+        Rneu = fRneu(fi, lam)
 
         Rneu2 = Rneu.T
 
@@ -81,29 +91,14 @@ def cw2(week,tow,hour,maska):
             A1 = np.array([[-(xs - xr) / r, -(ys - yr) / r, -(zs - zr) / r, 1]])
             ilosc_sat = ilosc_sat + 1
             A = np.append(A, A1, axis=0)
+            PRN.append("PG" + str(int(prn)))
+            PRN.append(el)
+            PRN.append(Az)
             ###nie wiesz ktora to godzina uzyc find!!!
             elewacje[ijj] = el
-
-
-            # if ijj == 0:
-            #     el_sat0.append(el)
-            # if ijj == 1:
-            #     el_sat1.append(el)
-            # if ijj == 2:
-            #     el_sat2.append(el)
-            # if ijj == 3:
-            #     el_sat3.append(el)
-            # if ijj == 4:
-            #     el_sat4.append(el)
-            # if ijj == 5:
-            #     el_sat5.append(el)
-            # if ijj == 6:
-            #     el_sat6.append(el)
-            # if ijj == 7:
-            #     el_sat7.append(el)
-            # if ijj == 5:
-            #     el_sat5.append(el)
+            sat_positions.append(PRN)
     Q = np.linalg.inv(A.T @ A)
+    dop = []
     GDOP = np.sqrt(Q[0, 0] + Q[1, 1] + Q[2, 2] + Q[3, 3])
     PDOP = np.sqrt(Q[0, 0] + Q[1, 1] + Q[2, 2])
     TDOP = np.sqrt(Q[3, 3])
@@ -114,6 +109,12 @@ def cw2(week,tow,hour,maska):
     VDOP = np.sqrt(Qneu[2, 2])
     PDOP_neu = np.sqrt(Qneu[0, 0] + Qneu[1, 1] + Qneu[2, 2])
 
-    return ilosc_sat,elewacje
+    dop.append(GDOP)
+    dop.append(PDOP)
+    dop.append(TDOP)
+    dop.append(HDOP)
+    dop.append(VDOP)
+
+    return ilosc_sat,elewacje,dop,sat_positions
 
 
