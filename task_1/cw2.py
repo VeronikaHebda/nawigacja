@@ -33,7 +33,7 @@ def fRneu(fi, lam):
                     )
     return Rneu
 
-def cw2(week,tow,hour,maska, fi, lam):
+def cw2(week,tow,maska, fi, lam):
     A = np.zeros((0, 4))
     ilosc_sat = 0
     elewacje = [maska]*31
@@ -42,6 +42,7 @@ def cw2(week,tow,hour,maska, fi, lam):
     lam = np.deg2rad(lam)
     h = 100
     sat_positions = []
+    xyz = []
     #petla przechodzaca przez wszystkie satelity
     for ijj in range(0,31):
         nav = navall[ijj, :]
@@ -50,8 +51,11 @@ def cw2(week,tow,hour,maska, fi, lam):
         # print("Dane dla epoki: ", ijj)
         xs, ys, zs = satpos(nav,week,tow)
         # print("\twspolrzedne satelity: ",xs,ys,zs)
-
-
+        wspolrzedne = []
+        wspolrzedne.append(xs)
+        wspolrzedne.append(ys)
+        wspolrzedne.append(zs)
+        xyz.append(wspolrzedne)
 
         # xr wspolrzedne odbiornika (miejsce obserwacji)
 
@@ -61,7 +65,6 @@ def cw2(week,tow,hour,maska, fi, lam):
 
         XyzR = np.array([xr, yr, zr])
         XyzS = np.array([xs, ys, zs])
-
         XyzSR = XyzS - XyzR
         [xsr, ysr, zsr] = XyzSR
 
@@ -115,6 +118,6 @@ def cw2(week,tow,hour,maska, fi, lam):
     dop.append(HDOP)
     dop.append(VDOP)
 
-    return ilosc_sat,elewacje,dop,sat_positions
+    return ilosc_sat,elewacje,dop,sat_positions,xyz
 
 
