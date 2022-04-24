@@ -1,5 +1,26 @@
+import numpy as np
+
 from readrnx_studenci import *
 from satpos import satpos
+from hirvonen import hirvonen
+import math as m
+
+def fRneu(fi, lam):
+    Rneu = np.array([[-np.sin(fi) * np.cos(lam), -np.sin(lam), np.cos(fi) * np.cos(lam)],
+                     [-np.sin(fi) * np.sin(lam), np.cos(lam), np.cos(fi) * np.sin(lam)],
+                     [np.cos(fi), 0, np.sin(fi)]]
+                    )
+    return Rneu
+
+def obrot(xs,ys,zs,a):
+    #a = np.deg2rad(a)
+    first = np.array([[np.cos(a), np.sin(a), 0],
+                      [-np.sin(a), np.cos(a), 0],
+                      [0,0,1]])
+    second = np.array([xs,ys,zs])
+    xs_root = first@second
+    return xs_root
+
 # scieżka do pliku nawigacyjnego
 nav_file = 'WROC00POL_R_20220800000_01D_GN.rnx'
 # cieżka do pliku obserwacyjnego
@@ -21,24 +42,18 @@ ind = inav==sat
 nav1 = nav[ind,:]
 inav1 = inav[ind]
 
-# data = [2022, 3, 21, 0, 30, 0]
-# week, tow = date2tow(data)[0:2]
-#
-# x,y,z,delta_time = satpos(nav1, week, tow)
-# print(x,y,z,delta_time)
-
-# %%
 """
 zdefiniowanie współrzędnych przybliżonych odbiornika - mogą to być współrzędne z nagłówka 
 pliku obserwacyjnego, skopiowane "z palca" lub pobierane automatycznie z treci nagłówka
 """
-x = 3835751.6257
-y = 1177249.7445
-z = 4941605.0540
+xr = 3835751.6257
+yr = 1177249.7445
+zr = 4941605.0540
+
 """
 Wprowadzenie ustawień, takich jak maska obserwacji, czy typ poprawki troposferycznej
 """
-el_mask = 0  # elevation mask/cut off in degrees
+el_mask = 10  # elevation mask/cut off in degrees
 
 """
 Przeliczenie daty początkowej i końcowej do sekund tygodnia GPS - niezbędne w celu
@@ -46,8 +61,9 @@ poprawnej definicji pętli związanej z czasem obserwacji w ciągu całej doby
 """
 week, tow = date2tow(time_start)[0:2]
 week_end, tow_end = date2tow(time_end)[0:2]
-# %% Obliczenia
 
+# %% Obliczenia
+omegaE = 7.2921151467 * (10 ** (-5))
 dt = 30
 for t in range(tow, tow_end+1, dt):
     # %% Obliczenia
@@ -64,16 +80,54 @@ for t in range(tow, tow_end+1, dt):
     #     xs, dts = satpos(ts, week, nav_sat)
 
     index = iobs[:, 2] == t
-    print(index)
     sats = iobs[index, 0]
-    print(sats)
     p_obs = obs[index, 0]
-    print(p_obs)
 
-    dtr = 0
-    tau = 0.072
-    # for i in range(5):
-    #     tr = t - tau + dtr
+
+dtr = 0
+tau = 0.072
+c = 299792458.0
+for i in range(5):
+    for sat in sats:
+        print(sat)
+        ind_sat = inav == sat
+        nav_sat = nav[ind_sat]
+        tr = 86400 - tau + dtr
+
+        xs, ys, zs, dts,dtr = satpos(nav_sat, week, tr)
+        print(tr, xs, ys, zs, dtr)
+        if sat==1:
+            a = omegaE * tau
+            dtr = 0
+        else:
+            a = omegaE * r/c
+        xs_root = obrot(xs,ys,zs,a)
+        print(xs_root)
+
+        fi,lam,h = hirvonen(xr,yr,zr)
+        XyzR = np.array([xr, yr, zr])
+        XyzS = np.array([xs_root[0], xs_root[1], xs_root[2]])
+        XyzSR = XyzS - XyzR
+        Rneu = fRneu(fi, lam)
+        Rneu2 = Rneu.T
+        Xsrneu = np.dot(Rneu2, XyzSR)
+        [n, e, u] = Xsrneu
+
+        # elewacja i azymut jednego satelity w jednej godzinie
+        Az = np.arctan2(e, n)
+        Az = m.degrees(Az)
+        el = np.arcsin(u / m.sqrt(n ** 2 + e ** 2 + u ** 2))
+        el = m.degrees(el)
+        r = np.linalg.norm(XyzSR)
+        print(Az)
+        print(el)
+        print(r)
+        print(dts,dtr)
+        #if el > maska: to potem
+        Pcalc = r - c*dts + c*dtr
+        print(Pcalc)
+
+
 """
 Otwieramy dużą pętlę
 for t in range(tow, tow_end+1, dt): gdzie dt równe 30

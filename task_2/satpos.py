@@ -33,8 +33,7 @@ def satpos(nav1, week, tow):
     delta_n = nav[11]
     Omega_dot = nav[24]
     IDOT = nav[25]
-    #gps_week = nav[27]
-
+    gps_week = nav[27]
     C_uc = nav[13]
     C_us = nav[15]
     C_ic = nav[18]
@@ -81,12 +80,13 @@ def satpos(nav1, week, tow):
     Yk = xk * np.sin(omega_k) + yk * np.cos(ik) * np.cos(omega_k)
     Zk = yk * np.sin(ik)
 
-    delta_ts = af0 + af1 * (tow - toe) + af2 * (tow - toe) ** 2
+
     c = 299792458.0  # [m / s]
-    delta_t_rel = ((-2 * np.sqrt(mu)) / c ** 2) * e * np.sqrt(a) * np.sin(Ek)
-    delta_ts_rel = delta_ts + delta_t_rel
+
+    dtr = ((-2 * np.sqrt(mu)) / c ** 2) * e * np.sqrt(a) * np.sin(Ek)
+    dts = af0 + af1 * (tow - toe) + af2 * (tow - toe) ** 2 + dtr
     #return np.array([Xk, Yk, Zk])
-    return Xk, Yk, Zk, delta_ts_rel
+    return Xk, Yk, Zk, dts,dtr
 
 
 # zajecia 2
