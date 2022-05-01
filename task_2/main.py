@@ -53,7 +53,7 @@ zr = 4941605.0540
 """
 Wprowadzenie ustawień, takich jak maska obserwacji, czy typ poprawki troposferycznej
 """
-el_mask = 10  # elevation mask/cut off in degrees
+maska = 10  # elevation mask/cut off in degrees
 
 """
 Przeliczenie daty początkowej i końcowej do sekund tygodnia GPS - niezbędne w celu
@@ -62,23 +62,10 @@ poprawnej definicji pętli związanej z czasem obserwacji w ciągu całej doby
 week, tow = date2tow(time_start)[0:2]
 week_end, tow_end = date2tow(time_end)[0:2]
 
-# %% Obliczenia
+#Obliczenia
 omegaE = 7.2921151467 * (10 ** (-5))
 dt = 30
 for t in range(tow, tow_end+1, dt):
-    # %% Obliczenia
-
-    # sats = iobs[ind_t, 0]
-    # obs_t = obs[ind_t, :]
-    #
-    # tau = 0.072
-    # for sat in sats:
-    #     ind_sat = invav == sat
-    #     nav_sat = nav[ind_sat]
-    #
-    #     tr = t - tau + dtr
-    #     xs, dts = satpos(ts, week, nav_sat)
-
     index = iobs[:, 2] == t
     sats = iobs[index, 0]
     p_obs = obs[index, 0]
@@ -87,22 +74,27 @@ for t in range(tow, tow_end+1, dt):
 dtr = 0
 tau = 0.072
 c = 299792458.0
+tau_list = [0.072] * 32
+
 for i in range(5):
-    for sat in sats:
-        print(sat)
+    print("Iteracja numer:", i)
+    A1 = np.zeros((0, 4))
+    y1 = []
+    for j,sat in enumerate(sats):
+        print("Satelita numer:",sat)
         ind_sat = inav == sat
         nav_sat = nav[ind_sat]
-        tr = 86400 - tau + dtr
-
-        xs, ys, zs, dts,dtr = satpos(nav_sat, week, tr)
-        print(tr, xs, ys, zs, dtr)
-        if sat==1:
+        tr = 86400 - tau_list[j] + dtr
+        print("tau:",tau_list[j])
+        xs, ys, zs, dts,dtrel = satpos(nav_sat, week, tr)
+        print("ts,wspolrzedne, dts",tr, xs, ys, zs, dts)
+        if i==0:
             a = omegaE * tau
             dtr = 0
         else:
-            a = omegaE * r/c
+            a = omegaE * tau_list[j]
         xs_root = obrot(xs,ys,zs,a)
-        print(xs_root)
+        print("xs root",xs_root)
 
         fi,lam,h = hirvonen(xr,yr,zr)
         XyzR = np.array([xr, yr, zr])
@@ -113,92 +105,36 @@ for i in range(5):
         Xsrneu = np.dot(Rneu2, XyzSR)
         [n, e, u] = Xsrneu
 
-        # elewacja i azymut jednego satelity w jednej godzinie
         Az = np.arctan2(e, n)
         Az = m.degrees(Az)
         el = np.arcsin(u / m.sqrt(n ** 2 + e ** 2 + u ** 2))
         el = m.degrees(el)
         r = np.linalg.norm(XyzSR)
-        print(Az)
-        print(el)
-        print(r)
-        print(dts,dtr)
-        #if el > maska: to potem
-        Pcalc = r - c*dts + c*dtr
-        print(Pcalc)
+        print("az:",Az)
+        print("el",el)
+        print("r",r)
+
+        if i==0:
+            tau_list[j] = r / c
+        if el > maska:
+            Pcalc = r - c * dts + c * dtr
+            print("pcalc", Pcalc)
+            y = Pcalc - p_obs[j]
+            y1.append(y)
+            A = np.array([[-(xs_root[0] - xr) / r, -(xs_root[1] - yr) / r, -(xs_root[2] - zr) / r, 1]])
+            A1 = np.append(A1, A, axis=0)
+    print("y", y1)
+    print("A", A1)
+    x = - np.linalg.inv(A1.T @ A1) @ A1.T @ y1
+    print("x",x)
+    xr = (xr + x[0])
+    yr = (yr + x[1])
+    zr = (zr + x[2])
+    dtr = (dtr + x[3]/c)
+    print(xr,yr,zr,dtr)
 
 
 """
-Otwieramy dużą pętlę
-for t in range(tow, tow_end+1, dt): gdzie dt równe 30
-    Wewnątrz tej pętli, zajmujemy się obserwacjami wyłącznie dla jednej epoki (epoka t), zatem:
-        1. Wybieramy obserwacje dla danej epoki, na podstawie tablicy iobs oraz naszej epoki t
-        czyli, wybieramy te obserwacje z tablicy obs, dla których w tablicy iobs ostatnia kolumna 
-        jest równa t - zmienna Pobs
-        2. wybieramy satelity, obserwowane w danej epoce, na podstawie tablicy iobs - na podstawie 
-        naszego t - zmienna sats
-        3. Definiujemy wartosci przybliżone: współrzędne odbiornika xr oraz błąd zegara odbiornika
-        dtr = 0 oraz czasu propagacji sygnału tau = 0.072
-        4. Najprawdopodobniej przyda się definicja pustych wektorów, np. zawierających 
-        odległosci geometryczne (wartoci przybliżone na podstawie tau) lub 
-
-    Przechodzimy do iteracyjnych obliczeń współrzędnych odbiornika:
-        pętla for (lub while), do testowania programu przyjmujemy pętle for dla 5 iteracji
-        Po weryfikacji działania programu, można zamienić pętlę for na pętle while, dopisując
-        warunek zbieżnoci kolejnych współrzędnych - skróci nam to czas obliczeń, ponieważ w 
-        praktyce nie potrzeba jest nam 5 iteracji, ale najczęciej 3
-
-        for i in range(5):
-            Wykonujemy kolejne obliczenia, niezależnie dla kolejnych satelitów, obserwowanych
-            w danej epoce, czyli przechodzimy do pętli:
-                for sat in sats: (przyda nam się tutaj również indeks satelity, więc byłoby
-                                  to co np. for i, sat in enumerate(sats):)
-                    Obliczamy czas emisji sygnału:
-                        tr = t - tau + dtr
-                    Kolejne kroki, znane z poprzedniego ćwiczenia:
-                    wyznaczamy współrzędne satelity xs (oraz błąd zegara satelity dts) na czas tr (UWAGA, w kolejnych iteracjach
-                    czas tr będzie się zmieniał i aktualizował, neizależnie dla każdego satelity)
-
-                    Odległosć geometryczna:
-                        1. rotacja do układu chwilowego - otrzymujemy xs_rot
-                        2. Na podstawie xs_rot obliczamy odległosć geometryczną rho
-
-                    Obliczamy elewację i azymut
-                    Macierz Rneu definiujemy na podstawie xr, przeliczonego do współrzędnych
-                    phi lambda, algorytmem Hirvonena
-
-                    Odrzucamy satelity znajdujące się poniżej maski
-
-                    Obliczamy poprawki atmosferyczne:
-                        trop oraz iono
-
-                    Wyznaczamy pseudoodległosć przybliżoną (obliczoną), jako:
-                        Pcalc = rho - cdts + dtr + trop + iono
-
-                    Wyznaczamy kolejen elementy wektora wyrazów wolnych y, jako:
-                        y = Pcalc - Pobs
-
-                    Budujemy kolejne wiersze macierzy A:
-
-                Kończymy pętle dla kolejnych satelitów
-
-                1. Łączymy ze sobą elementy wektora wyrazów wolych w jeden wektor
-                2. Łączymy ze sobą kolejnę wiersze macierz współczynników A
-                3. Rozwiązujemy układ równać, metodą najmniejszych kwadratów
-
-                x = -np.linalg.inv(A.T@A) @ (A.T @ y)
-
-                gdzie x jest wektorem zawierającym szukane przyrosty do niewiadomych
-
-                Aktualizujemy wartosci przybliżone o odpowiednie elementy wektora x
-                xr[0] = xr[0] + x[0]
-                xr[1] = xr[1] + x[1]
-                xr[2] = xr[2] + x[2]
-                dtr = dtr + x[3]/c 
-
-                Tak obliczone wartoci xr oraz dtr stanowią wartoci wejsciowe do kolejnej iteracji, itd 
-                do skończenia piątej iteracji lub spełnienia warunku zbieżnoci współrzędncyh
-
 
             Po skończeniu 5. iteracji, zbieramy obliczone współrzędne xr - warto zebrać również
             liczby obserwowanych satelitów, obliczone wartoci współczynników DOP (przynajmniej PDOP)

@@ -83,10 +83,10 @@ def satpos(nav1, week, tow):
 
     c = 299792458.0  # [m / s]
 
-    dtr = ((-2 * np.sqrt(mu)) / c ** 2) * e * np.sqrt(a) * np.sin(Ek)
-    dts = af0 + af1 * (tow - toe) + af2 * (tow - toe) ** 2 + dtr
+    dtrel = ((-2 * np.sqrt(mu)) / c ** 2) * e * np.sqrt(a) * np.sin(Ek)
+    dts = af0 + af1 * (tow - toe) + af2 * (tow - toe) ** 2 + dtrel
     #return np.array([Xk, Yk, Zk])
-    return Xk, Yk, Zk, dts,dtr
+    return Xk, Yk, Zk, dts,dtrel
 
 
 # zajecia 2
