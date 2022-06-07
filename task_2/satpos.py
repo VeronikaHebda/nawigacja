@@ -1,7 +1,5 @@
-# -*- coding: utf-8 -*-
 """
 Created on Thu Apr 21 11:34:19 2022
-
 @author: Student1
 """
 
@@ -16,7 +14,7 @@ def satpos(nav1, week, tow):
     omegaE = 7.2921151467 * (10 ** (-5))
 
     toe_all = nav1[:, 17] + nav1[:, 27] * 86400 * 7
-    roznica = tow - toe_all
+    roznica = tow + week*7*86400 - toe_all
     ind = np.argmin(abs(roznica))
     nav0 = nav1[ind,:]
 
@@ -93,4 +91,3 @@ def satpos(nav1, week, tow):
 # 3835751.6257  1177249.7445  4941605.0540                  APPROX POSITION XYZ
 
 # elif label.find('APPROX POSITION XYZ')!= -1:
-    
