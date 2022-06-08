@@ -1,5 +1,4 @@
 import numpy as np
-
 from readrnx_studenci import *
 from satpos import satpos
 from hirvonen import hirvonen
@@ -15,7 +14,6 @@ def fRneu(fi, lam):
     return Rneu
 
 def obrot(xs,ys,zs,a):
-    #a = np.deg2rad(a)
     first = np.array([[np.cos(a), np.sin(a), 0],
                       [-np.sin(a), np.cos(a), 0],
                       [0,0,1]])
@@ -36,8 +34,6 @@ def find_unhealthy(inav, nav):
     unhealthy_satelites = np.unique(inav[ind])
 
     return unhealthy_satelites
-
-
 
 # scieżka do pliku nawigacyjnego
 nav_file = 'WROC00POL_R_20220800000_01D_GN.rnx'
@@ -71,7 +67,7 @@ zr = 4941605.0540
 """
 Wprowadzenie ustawień, takich jak maska obserwacji, czy typ poprawki troposferycznej
 """
-maska = 10  # elevation mask/cut off in degrees
+maska = 10
 
 """
 Przeliczenie daty początkowej i końcowej do sekund tygodnia GPS - niezbędne w celu
@@ -80,7 +76,7 @@ poprawnej definicji pętli związanej z czasem obserwacji w ciągu całej doby
 week, tow = date2tow(time_start)[0:2]
 week_end, tow_end = date2tow(time_end)[0:2]
 
-# czyszczenie niezdrowych
+#usuwanie satelitów
 unhealthy_satelites = find_unhealthy(inav, nav)
 for i in unhealthy_satelites:
     ind = iobs[:, 0] == i
@@ -119,7 +115,6 @@ h_ort = 140.587
 p = p0*(1 - 0.0000226*h_ort)**5.225
 temp=t0-0.0065*h_ort
 Rh=Rh0*np.exp(-0.0006396*h_ort)
-#Rh=Rh0*e**(-0.0006396)
 e_= 6.11*Rh*10**(7.5*(temp-273.15)/(temp-35.85))
 c1= 77.64
 c2=-12.96
@@ -131,8 +126,8 @@ hw= 11000
 dTd0 = (10 ** (-6))/5 * Nd0 * hd
 dTw0 = (10 ** (-6))/5 * Nw0 * hw
 
-dTd0_saas = 0.002277*p
-dTw0_saas = 0.002277 * (1255/temp + 0.05)*e_
+#dTd0_saas = 0.002277*p
+#dTw0_saas = 0.002277 * (1255/temp + 0.05)*e_
 
 
 for t in range(tow, tow_end+1, dt):
@@ -195,13 +190,13 @@ for t in range(tow, tow_end+1, dt):
                 dT = dTd + dTw
                 #print("dt", dT)
                 #zrobienie tego samego dla modelu sastoinen
-                dT_saas = mdel * dTd0_saas + mwel * dTw0_saas
+                #dT_saas = mdel * dTd0_saas + mwel * dTw0_saas
                 #print("dT_saas", dT_saas)
                 
                 dI = klobuchar(t, fi, lam, el, Az, alfa, beta)
                 #print(dI)
                 #wzbogacenie aplikacji o rozne czestotliwosci, ostatni wzór
-                Pcalc = r - c * dts + c * dtr + dT_saas + dI
+                Pcalc = r - c * dts + c * dtr + dT + dI
                 #print("pcalc", Pcalc)
                 y = Pcalc - p_obs[j]
                 y1.append(y)
@@ -240,7 +235,7 @@ for t in range(tow, tow_end+1, dt):
     roznicez.append(roznicaz)
     dop.append([GDOP,PDOP,TDOP,HDOP,VDOP])
                     
-#np.savetxt('save.txt',wyniki, fmt = ['%10.4f','%10.4f','%10.4f'])
+np.savetxt('wyniki.txt',wyniki, fmt = ['%10.4f','%10.4f','%10.4f'])
 x1 = [i for i in range(0, len(T))]
 hours = [x for x in range(0, 24)]
 labelx = np.arange(0, len(x1), step=120)
